@@ -1411,10 +1411,16 @@ class ElementalClashGame {
     const ls = document.getElementById('loading-screen');
     if(show){
       ls.classList.remove('hidden');
+      ls.style.display = 'flex';
       ls.style.pointerEvents = 'all';
     } else {
       ls.classList.add('hidden');
       ls.style.pointerEvents = 'none';
+      // Force display:none after opacity transition (0.5s)
+      setTimeout(()=>{
+        ls.style.display = 'none';
+        ls.style.visibility = 'hidden';
+      }, 600);
     }
   }
 
