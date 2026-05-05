@@ -1310,9 +1310,9 @@ class ElementalClashGame {
     // Cinematic Editor
     this.cinematic = new CinematicEditor(this.camera);
 
-    // Audio
+    // Audio (non-blocking - audio failures don't block game)
     this.audio = new AudioManager();
-    await this.audio.init();
+    try { await this.audio.init(); } catch(e) { console.warn('Audio init failed:',e); }
     this._setProgress(85);
 
     // Spell Wheel UI
