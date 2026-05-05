@@ -193,7 +193,7 @@ const EL_COLORS = [0xff4400, 0x0088ff, 0x886622, 0xaaddff, 0xffff00];
 const EL_CSS_COLORS = ['#ff4400','#0088ff','#886622','#aaddff','#ffff00'];
 const EL_DAMAGE = [100, 80, 120, 60, 150];
 const EL_COOLDOWN = [2.0, 1.5, 3.0, 1.0, 4.0];
-const EL_SPEED = [8, 6, 4, 12, 10];
+const EL_SPEED = [24, 18, 12, 36, 30];
 const EL_RADIUS = [0.3, 0.4, 0.5, 0.25, 0.35];
 const COUNTER_MATRIX = [
   [1.0, 0.5, 1.5, 1.0, 0.5],
@@ -472,11 +472,13 @@ class SpellWheelUI {
     else { this.p2Selected=idx; this.p2CanCast=true; }
     this._updateCastBtn(player);
     if(this.onCast && this.p1Selected>=0 && this.p2Selected>=0){
-      this.onCast(1, this.p1Selected);
-      this.onCast(2, this.p2Selected);
+      const p1El = this.p1Selected;
+      const p2El = this.p2Selected;
       this.p1Selected=-1; this.p2Selected=-1;
       this.p1CanCast=false; this.p2CanCast=false;
       this._updateCastBtn(1); this._updateCastBtn(2);
+      this.onCast(1, p1El);
+      this.onCast(2, p2El);
     }
   }
   _cast(player){
@@ -497,7 +499,12 @@ class SpellWheelUI {
     const slots=container.querySelectorAll('.spell-slot');
     if(!slots[slot]) return;
     const cdRing=slots[slot].querySelector('.cooldown-ring');
-    if(cdRing) cdRing.style.background=`conic-gradient(${EL_CSS_COLORS[slot]}44 ${pct*360}deg, transparent ${pct*360}deg)`;
+    if(!cdRing) return;
+    if(pct >= 1){
+      cdRing.style.background=`conic-gradient(${EL_CSS_COLORS[slot]}88 360deg, transparent 360deg)`;
+    } else {
+      cdRing.style.background=`conic-gradient(${EL_CSS_COLORS[slot]}44 ${pct*360}deg, transparent ${pct*360}deg)`;
+    }
   }
   show(){
     document.getElementById('spell-wheels').style.display='block';
@@ -840,6 +847,8 @@ class ArenaGeometry {
       this.vortexMesh.rotation.y = time*1.5;
       const pulse = 1+Math.sin(time*4)*0.1;
       this.vortexMesh.scale.setScalar(pulse);
+    }
+    if(this.vortexGlow){
       this.vortexGlow.scale.setScalar(0.8+Math.sin(time*6)*0.2);
     }
     for(const torch of this.torchMeshes){
@@ -946,14 +955,15 @@ class PostProcessing {
   }
   init(){
     try{
-      this.composer = new THREE.EffectComposer(this.renderer);
+      const composer = new THREE.EffectComposer(this.renderer);
       const rp = new THREE.RenderPass(this.scene, this.camera);
-      this.composer.addPass(rp);
+      composer.addPass(rp);
       this.bloomPass = new THREE.UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
         0.8, 0.4, 0.85
       );
-      this.composer.addPass(this.bloomPass);
+      composer.addPass(this.bloomPass);
+      this.composer = composer;
     }catch(e){ console.warn('PostProcessing init failed:',e); }
   }
   shake(intensity=0.3){
@@ -963,8 +973,6 @@ class PostProcessing {
     if(this.shakeIntensity > 0){
       this.shakeIntensity = Math.max(0, this.shakeIntensity - this.shakeDecay*dt);
     }
-    if(this.composer) this.composer.render();
-    else this.renderer.render(this.scene, this.camera);
   }
 }
 
@@ -1420,7 +1428,11 @@ class ElementalClashGame {
         overlay.classList.add('active');
         this.spellWheel.hide();
         this._resetRound();
-        setTimeout(()=>{ overlay.classList.remove('active'); this.spellWheel.show(); }, 2500);
+        setTimeout(()=>{ 
+          overlay.classList.remove('active'); 
+          this.spellWheel.show(); 
+          this.gsm.enter(STATES.COMBAT);
+        }, 2500);
         this.audio.playSFX('round_start');
         this.postfx.shake(0.2);
         break;
@@ -1468,7 +1480,7 @@ class ElementalClashGame {
     this.audio.playSFX('cast_'+EL_NAMES[element].toLowerCase());
 
     // Show cooldown on wheel
-    this.spellWheel.showCooldown(player, element, 0);
+    this.spellWheel.showCooldown(player, element, 1);
 
     if(player===1){ this._pendingP1Cast = element; }
     else { this._pendingP2Cast = element; }
@@ -1640,13 +1652,18 @@ class ElementalClashGame {
       // Cinematic
       this.cinematic.update(dt);
 
-      // Post-processing
+      // Post-processing & Render
       if(this.postfx.shakeIntensity > 0){
         const s = this.postfx.shakeIntensity;
         this.camera.position.x += (Math.random()-0.5)*s*0.5;
         this.camera.position.y += (Math.random()-0.5)*s*0.5;
       }
       this.postfx.update(dt);
+
+      this.renderer.render(this.scene, this.camera);
+      if(this.postfx.composer) {
+        this.postfx.composer.render();
+      }
     };
     loop();
   }
