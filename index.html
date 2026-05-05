@@ -1218,6 +1218,7 @@ class ElementalClashGame {
     await this._loadAssets();
     this._ready = true;
     this._setProgress(100);
+    this._showLoading(false);
     this._bindEvents();
     this._gameLoop();
   }
@@ -1408,8 +1409,13 @@ class ElementalClashGame {
 
   _showLoading(show){
     const ls = document.getElementById('loading-screen');
-    if(show) ls.classList.remove('hidden');
-    else ls.classList.add('hidden');
+    if(show){
+      ls.classList.remove('hidden');
+      ls.style.pointerEvents = 'all';
+    } else {
+      ls.classList.add('hidden');
+      ls.style.pointerEvents = 'none';
+    }
   }
 
   _onStateChange(state, prev){
